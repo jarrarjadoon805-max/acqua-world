@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aqua World - Stay Hydrated</title>
+    <!-- GSAP & ScrollTrigger -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --text-light: #e0f2fe;
+            --text-dark: #011627;
+            --brand-cyan: #00e0ff;
+            --bottle-top: #1a2436;
+            --bottle-mid: #214e73;
+            --bottle-btm: #0cbaba;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            overflow-x: hidden;
+            overscroll-behavior: none;
+            color: var(--text-light);
+            background: #001a2e; /* Fallback */
+        }
+
+        /* =========================================
+           ABSTRACT LIQUID ENVIRONMENT (DYNAMIC)
+           ========================================= */
+        .ocean-environment {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -10; overflow: hidden;
+            /* We will animate these CSS variables via GSAP */
+            --bg-color-1: #0093E9; 
+            --bg-color-2: #153677;
+            background: radial-gradient(ellipse at top, var(--bg-color-1) 0%, var(--bg-color-2) 100%);
+        }
+
+        .god-rays {
+            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(from 90deg at 50% 0%, transparent 0deg, rgba(255, 255, 255, 0.05) 10deg, transparent 20deg, rgba(255, 255, 255, 0.08) 40deg, transparent 60deg, rgba(255, 255, 255, 0.04) 80deg, transparent 100deg, rgba(255, 255, 255, 0.06) 120deg, transparent 140deg);
+            animation: rays-sway 15s ease-in-out infinite alternate; transform-origin: 50% 0%; z-index: 1;
+        }
+        @keyframes rays-sway { 0% { transform: rotate(-5deg) scale(1.2); } 100% { transform: rotate(5deg) scale(1.5); } }
+
+        .caustics {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.005' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.25; mix-blend-mode: overlay; animation: caustic-shift 20s linear infinite; z-index: 2;
+        }
+        @keyframes caustic-shift { 0% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.5) translate(-20px, 20px); } 100% { transform: scale(1) translate(0, 0); } }
+
+        .particle { position: absolute; background: #ffffff; border-radius: 50%; box-shadow: 0 0 5px rgba(255, 255, 255, 0.8); opacity: 0.6; z-index: 4; }
+        .bubble { position: absolute; bottom: -50px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.1) 50%, transparent 70%); border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); z-index: 5; }
+        .vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 10, 20, 0.8) 100%); pointer-events: none; z-index: 9; }
+
+        /* =========================================
+           NAVIGATION
+           ========================================= */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100; color: #fff;
+        }
+        .logo { font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+
+        /* =========================================
+           THE BOTTLE
+           ========================================= */
+        .master-bottle-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; pointer-events: none; perspective: 1200px;
+        }
+        .bottle-wrapper {
+            position: relative; width: 160px; height: 500px;
+            transform-style: preserve-3d; will-change: transform; filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+        }
+        .spinner-3d { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; }
+
+        .bottle-cap-container { position: absolute; top: -65px; left: 50%; transform: translateX(-50%); width: 150px; height: 70px; z-index: 10; }
+        .cap-base { position: absolute; bottom: 0; width: 100%; height: 35px; background: linear-gradient(90deg, #111827, #2d3748, #111827); border-radius: 5px 5px 0 0; }
+        .cap-neck { position: absolute; bottom: -5px; width: 140px; left: 5px; height: 10px; background: #0f172a; border-radius: 10px; }
+        .cap-top-clear { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; height: 40px; background: linear-gradient(90deg, rgba(30,64,175,0.7), rgba(59,130,246,0.5), rgba(30,64,175,0.7)); border-radius: 10px 10px 0 0; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2); border-bottom: none; box-shadow: inset 0 5px 15px rgba(255,255,255,0.3); }
+        .latch { position: absolute; bottom: 5px; left: 50%; width: 25px; height: 40px; background: #0f172a; border-radius: 10px; margin-left: -12.5px; transform: translateZ(76px); box-shadow: 0 5px 10px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+        .latch-button { width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; box-shadow: inset 0 0 3px rgba(0,0,0,0.8); }
+
+        .strap { position: absolute; top: 30px; right: 0; width: 15px; height: 250px; border-right: 4px solid #1e293b; border-bottom: 4px solid #1e293b; border-radius: 0 15px 15px 0; transform: translateX(80px) translateZ(0); transform-origin: top left; z-index: 1; }
+
+        .bottle-body { position: absolute; inset: 0; border-radius: 20px 20px 30px 30px; overflow: hidden; z-index: 5; background: linear-gradient(to bottom, var(--bottle-top) 0%, var(--bottle-mid) 40%, var(--bottle-btm) 100%); box-shadow: 0 30px 40px rgba(0,0,0,0.2); }
+        .bottle-body::after { content: ''; position: absolute; inset: 0; border-radius: 20px 20px 30px 30px; background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(255,255,255,0.0) 15%, rgba(255,255,255,0.3) 22%, rgba(255,255,255,0.0) 30%, rgba(0,0,0,0.0) 80%, rgba(0,0,0,0.6) 100%); pointer-events: none; z-index: 100; }
+
+        .label-front { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transform: translateZ(80px); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .text-vertical { writing-mode: vertical-lr; transform: rotate(180deg); display: flex; align-items: center; gap: 10px; margin-right: 20px; }
+        .text-stay { color: rgba(255,255,255,0.8); font-size: 1.2rem; font-weight: 400; letter-spacing: 2px; }
+        .text-hydrated { color: #ffffff; font-size: 3.8rem; font-weight: 900; letter-spacing: 1px; }
+
+        .label-back { position: absolute; inset: 0; padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between; transform: rotateY(180deg) translateZ(80px); backface-visibility: hidden; -webkit-backface-visibility: hidden; color: white; text-align: center; }
+        .time-row { display: flex; flex-direction: column; align-items: center; position: relative; margin-bottom: 5px; }
+        .time-header { display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 0.85rem; font-weight: 600; }
+        .drop-icon { font-size: 1rem; opacity: 0.9; }
+        .oz-marker { position: absolute; right: -10px; top: 0; font-size: 0.7rem; opacity: 0.8; border-bottom: 1px solid rgba(255,255,255,0.5); padding-bottom: 2px; width: 30px; text-align: right; }
+        .quote { font-size: 0.6rem; opacity: 0.7; letter-spacing: 1px; margin-top: 2px; }
+        .bpa-free { font-size: 0.75rem; font-weight: 600; opacity: 0.9; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+        /* =========================================
+           PAGE SECTIONS
+           ========================================= */
+        section { height: 100vh; width: 100vw; display: flex; align-items: center; padding: 0 10%; position: relative; z-index: 10; }
+
+        .hero { justify-content: flex-start; text-align: left; }
+        .hero-content { max-width: 45vw; }
+        .hero h1 { font-size: 6vw; line-height: 1.1; text-transform: uppercase; font-weight: 900; background: linear-gradient(to bottom, #ffffff, #a5f3fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; opacity: 0; transform: translateY(30px); z-index: 100; text-shadow: 0 0 30px rgba(0, 224, 255, 0.3); }
+        .hero p { font-size: 1.2vw; margin-top: 1.5rem; color: #a5f3fc; opacity: 0; transform: translateY(20px); font-weight: 600; }
+
+        .features { justify-content: flex-end; }
+        .features-content { width: 45vw; }
+        .feature-block { margin-bottom: 2rem; background: rgba(1, 22, 39, 0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 2rem; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 15px 35px rgba(0,0,0,0.4); color: #fff; opacity: 0; transform: translateX(50px); }
+        .feature-block h3 { color: var(--brand-cyan); font-size: 2rem; margin-bottom: 0.5rem; text-shadow: 0 0 10px rgba(0, 224, 255, 0.3); }
+        .feature-block p { line-height: 1.6; color: #cbd5e1; }
+
+        .details { justify-content: flex-start; }
+        .details-content { width: 45vw; }
+        .details h2 { font-size: 4rem; margin-bottom: 2rem; color: #fff; text-shadow: 0 0 20px rgba(0, 224, 255, 0.4); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .stat { background: rgba(1, 22, 39, 0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 2rem; border-radius: 15px; border-left: 5px solid var(--brand-cyan); color: #fff; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+        .stat h4 { font-size: 2.5rem; color: var(--brand-cyan); font-weight: 900; text-shadow: 0 0 10px rgba(0, 224, 255, 0.3); }
+        .stat p { font-weight: 600; color: #cbd5e1; }
+
+        .cta { justify-content: flex-end; align-items: center; text-align: right; }
+        .cta-content { max-width: 45vw; margin-right: 5vw; }
+        .cta h2 { font-size: 5rem; line-height: 1.1; margin-bottom: 2rem; color: #fff; z-index: 100;}
+        .buy-btn { padding: 1.5rem 4rem; font-size: 1.5rem; font-weight: 800; background: var(--brand-cyan); color: var(--text-dark); border: none; border-radius: 50px; cursor: pointer; transition: all 0.3s ease; z-index: 100; box-shadow: 0 10px 30px rgba(0, 224, 255, 0.4); pointer-events: auto; }
+        .buy-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 20px 40px rgba(0, 224, 255, 0.6); }
+    </style>
+</head>
+<body>
+
+    <!-- Abstract Liquid Background -->
+    <div class="ocean-environment">
+        <div class="god-rays"></div>
+        <div class="caustics"></div>
+        <div class="vignette"></div>
+    </div>
+
+    <nav>
+        <div class="logo">AQUA WORLD</div>
+        <div style="font-weight: 600; font-size: 0.9rem; letter-spacing: 1px; opacity: 0.8;">SCROLL TO DISCOVER</div>
+    </nav>
+
+    <!-- Master Bottle -->
+    <div class="master-bottle-container">
+        <div class="bottle-wrapper">
+            <div class="bottle-cap-container spinner-3d">
+                <div class="cap-base"></div>
+                <div class="cap-neck"></div>
+                <div class="cap-top-clear"></div>
+                <div class="latch"><div class="latch-button"></div></div>
+            </div>
+            <div class="spinner-3d"><div class="strap"></div></div>
+            <div class="bottle-body">
+                <div class="spinner-3d">
+                    <div class="label-front">
+                        <div class="text-vertical"><span class="text-stay">STAY</span><span class="text-hydrated">HYDRATED</span></div>
+                    </div>
+                    <div class="label-back">
+                        <div class="time-row" style="margin-top: 10px;"><div class="time-header"><span>8AM</span><span class="drop-icon">💧</span><span>2PM</span><span class="oz-marker">32oz</span></div><div class="quote">GET STARTED</div></div>
+                        <div class="time-row"><div class="time-header"><span>9AM</span><span class="drop-icon">💧</span><span>3PM</span><span class="oz-marker">28</span></div><div class="quote">REMEMBER YOUR GOAL</div></div>
+                        <div class="time-row"><div class="time-header"><span>10AM</span><span class="drop-icon">💧</span><span>4PM</span><span class="oz-marker">24</span></div><div class="quote">KEEP CHUGGING</div></div>
+                        <div class="time-row"><div class="time-header"><span>11AM</span><span class="drop-icon">💧</span><span>5PM</span><span class="oz-marker">16</span></div><div class="quote">DON'T GIVE UP</div></div>
+                        <div class="time-row"><div class="time-header"><span>12PM</span><span class="drop-icon">💧</span><span>6PM</span><span class="oz-marker">12</span></div><div class="quote">ALMOST THERE</div></div>
+                        <div class="time-row"><div class="time-header"><span>1PM</span><span class="drop-icon">💧</span><span>7PM</span><span class="oz-marker">8</span></div><div class="quote">YOU DID IT</div></div>
+                        <div class="bpa-free">✔️ BPA FREE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sections -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Own Your<br>Hydration</h1>
+            <p class="hero-sub">The ultimate motivation to keep you moving forward. Experience the perfect blend of aesthetic design and functional performance.</p>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="features-content">
+            <div class="feature-block f1">
+                <h3>Vibrant Matte Gradient</h3>
+                <p>Designed to stand out. Our soft-touch matte finish provides a slip-free grip and a stunning aesthetic.</p>
+            </div>
+            <div class="feature-block f2">
+                <h3>Secure Sport Lid</h3>
+                <p>Equipped with a one-click push button, secure locking mechanism, and a heavy-duty nylon carrying strap.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="details" id="details">
+        <div class="details-content">
+            <h2 class="details-title">Stay on Track</h2>
+            <div class="stats-grid">
+                <div class="stat s1"><h4>Hourly</h4><p>Motivation Markers</p></div>
+                <div class="stat s2"><h4>32 oz</h4><p>Perfect Capacity</p></div>
+                <div class="stat s3"><h4>100%</h4><p>BPA-Free Tritan</p></div>
+                <div class="stat s4"><h4>Zero</h4><p>Leaks or Spills</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta" id="cta">
+        <div class="cta-content">
+            <h2 class="cta-title">Hit Your Goals Daily</h2>
+            <button class="buy-btn">Get Yours Now</button>
+        </div>
+    </section>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        /* Environment JS (Particles & Bubbles) */
+        const ocean = document.querySelector('.ocean-environment');
+        for (let i = 0; i < 30; i++) {
+            const p = document.createElement('div'); p.classList.add('particle');
+            const size = Math.random() * 3 + 1; p.style.width = size + 'px'; p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + 'vw'; p.style.top = Math.random() * 100 + 'vh'; ocean.appendChild(p);
+            gsap.to(p, { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 50, duration: Math.random() * 10 + 10, repeat: -1, yoyo: true, ease: "sine.inOut" });
+        }
+        function spawnBubble() {
+            const b = document.createElement('div'); b.classList.add('bubble');
+            const size = Math.random() * 20 + 5; b.style.width = size + 'px'; b.style.height = size + 'px';
+            b.style.left = Math.random() * 100 + 'vw'; b.style.setProperty('--x', (Math.random() - 0.5) * 200 + 'px'); ocean.appendChild(b);
+            gsap.to(b, { y: -window.innerHeight - 100, x: parseFloat(b.style.getPropertyValue('--x')), duration: Math.random() * 5 + 6, ease: "power1.out", onComplete: () => b.remove() });
+            setTimeout(spawnBubble, Math.random() * 800 + 200);
+        }
+        spawnBubble();
+        
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 40; const y = (e.clientY / window.innerHeight - 0.5) * 40;
+            gsap.to('.god-rays', { x: x, y: y, duration: 3, ease: "power2.out" }); gsap.to('.caustics', { x: -x, y: -y, duration: 3, ease: "power2.out" });
+        });
+
+        /* =========================================
+           SCROLL, BOTTLE, & BACKGROUND COLOR LOGIC
+           ========================================= */
+        gsap.set('.bottle-wrapper', { x: "20vw" });
+
+        const heroTl = gsap.timeline();
+        heroTl.to('.hero-title', { y: 0, opacity: 1, duration: 1.2, ease: "power4.out", delay: 0.2 })
+              .to('.hero-sub', { y: 0, opacity: 1, duration: 1, ease: "power3.out" }, "-=0.8");
+
+        gsap.to('.bottle-wrapper', { y: 15, duration: 3, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+        let tl = gsap.timeline({
+            scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1.2 }
+        });
+
+        // Step 1: Hero -> Features
+        // Background shifts to Mid Depth (Dark Blue)
+        tl.to('.ocean-environment', { '--bg-color-1': '#0a5470', '--bg-color-2': '#001a2e', ease: 'none' }, 0);
+        tl.to('.bottle-wrapper', { x: "-25vw", y: "2vh", rotationZ: -10, scale: 1.05, ease: "power1.inOut" }, 0);
+        tl.to('.spinner-3d', { rotationY: -30, ease: "power1.inOut" }, 0);
+
+        gsap.to('.f1', { scrollTrigger: { trigger: '.features', start: 'top center', end: 'center center', scrub: 1 }, x: 0, opacity: 1 });
+        gsap.to('.f2', { scrollTrigger: { trigger: '.features', start: 'top 40%', end: 'center 40%', scrub: 1 }, x: 0, opacity: 1 });
+
+        // Step 2: Features -> Details
+        // Background shifts to Premium Dark Violet/Navy
+        tl.to('.ocean-environment', { '--bg-color-1': '#1a0b2e', '--bg-color-2': '#020108', ease: 'none' }, 1);
+        tl.to('.bottle-wrapper', { x: "25vw", y: "5vh", rotationZ: 10, scale: 1.1, ease: "power2.inOut" }, 1);
+        tl.to('.spinner-3d', { rotationY: 180, ease: "power2.inOut" }, 1);
+
+        // Step 3: Details -> CTA
+        // Background shifts to Vibrant Action Aqua
+        tl.to('.ocean-environment', { '--bg-color-1': '#005c97', '--bg-color-2': '#0a1d3a', ease: 'none' }, 2);
+        tl.to('.bottle-wrapper', { x: "-25vw", y: "0vh", rotationZ: 0, scale: 0.95, ease: "power3.inOut" }, 2);
+        tl.to('.spinner-3d', { rotationY: 360, ease: "power3.inOut" }, 2);
+
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 30;
+            const y = (e.clientY / window.innerHeight - 0.5) * 30;
+            gsap.to('.master-bottle-container', { rotationY: x, rotationX: -y, duration: 1.5, ease: "power2.out" });
+        });
+    </script>
+</body>
+</html>
